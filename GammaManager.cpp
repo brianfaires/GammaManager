@@ -1,21 +1,25 @@
 #include "GammaManager.h"
 
+// Applies gamma correction from matrices defined in the main project
 void GammaManager::Correct(CRGB& pixel) {
   pixel.r = pgm_read_byte(&gammaR[pixel.r]);
   pixel.g = pgm_read_byte(&gammaG[pixel.g]);
   pixel.b = pgm_read_byte(&gammaB[pixel.b]);
 }
 
+// Inverse function of Correct(); Use on already corrected colors prior to interpolating and re-correcting
 void GammaManager::Inverse(CRGB& pixel) {
   pixel.r = pgm_read_byte(&reverseGammaR[pixel.r]);
   pixel.g = pgm_read_byte(&reverseGammaG[pixel.g]);
   pixel.b = pgm_read_byte(&reverseGammaB[pixel.b]);
 }
 
+// Scales brightness according to the brightness gamma matrix defined in the main project
 void GammaManager::ScaleBrightness(CRGB& pixel, uint8_t brightness) {
   pixel %= gammaDim[brightness];
 }
 
+// Shortcut to apply gamma and brightness scaling
 void GammaManager::SetPixel(CRGB& pixel, uint8_t brightness) {
   Correct(pixel);
   ScaleBrightness(pixel, brightness);
@@ -55,6 +59,7 @@ void GammaManager::Init(uint32_t colorCorrection, const uint8_t* gamR, const uin
   }
 }
 
+// Makes sure that FastLED's COLOR_CORRECTION does not turn 1's and 2's into 0's
 void GammaManager::FixFloors(CRGB* leds, uint16_t numLEDs) {
   // For speed's sake, do a 7 way conditional to avoid pointless checks against a maxed out color
   if(minBrightness_R > 1) {
@@ -114,6 +119,7 @@ void GammaManager::FixFloors(CRGB* leds, uint16_t numLEDs) {
   }  
 }
 
+// The main test loop with serial IO
 void GammaManager::RunTests(CRGB* leds, uint16_t numLEDs, uint16_t thickness, uint16_t gradientLength, uint32_t defaultColorCorrection, uint32_t defaultTemp) {
   static uint8_t curMode = 0;
   colCorrection = defaultColorCorrection;
@@ -124,7 +130,7 @@ void GammaManager::RunTests(CRGB* leds, uint16_t numLEDs, uint16_t thickness, ui
   
   while(true) {
     if(curMode == 0) {
-      // The most common test; A gradient of RGB and a gradient of HSV
+      // The most common test; A gradient of RGB at the start and a gradient of HSV at the end
       RunGradientTest(leds, numLEDs, gradientLength, defaultColorCorrection);
     }
     else if(curMode == 1) { 
@@ -162,6 +168,7 @@ void GammaManager::RunTests(CRGB* leds, uint16_t numLEDs, uint16_t thickness, ui
 }
 
 // ------------ Tests ------------
+// Shows bands of pure hues for color balancing
 void GammaManager::RunSimpleTest(CRGB* leds, uint16_t numLEDs, uint8_t thickness) {
   uint16_t period = 3*(thickness+1);
   while(numLEDs < period) { thickness--; }
@@ -195,6 +202,7 @@ void GammaManager::RunSimpleTest(CRGB* leds, uint16_t numLEDs, uint8_t thickness
   } while(ProcessSerialInput());
 }
 
+// Shows bands of white LEDs for color balancing and red shift detection
 void GammaManager::RunWhiteTest(CRGB* leds, uint16_t numLEDs, uint8_t spacing) {
   uint8_t interval = spacing + 1;
   
@@ -216,6 +224,7 @@ void GammaManager::RunWhiteTest(CRGB* leds, uint16_t numLEDs, uint8_t spacing) {
   } while(ProcessSerialInput());
 }
 
+// Shows bands of pure and midpoint colors for color balancing and gamma tuning
 void GammaManager::RunMidpointTest(CRGB* leds, uint16_t numLEDs, uint8_t thickness, bool onePatternOnly) {
   uint16_t period = 6*thickness;
   while(numLEDs < period) { thickness--; }
@@ -249,6 +258,7 @@ void GammaManager::RunMidpointTest(CRGB* leds, uint16_t numLEDs, uint8_t thickne
   } while(ProcessSerialInput());
 }
 
+// Draws a gradient (or double gradient if room) of RGB from the front end, and HSV from the back end
 void GammaManager::RunGradientTest(CRGB* leds, uint16_t numLEDs, uint16_t gradientLength, uint32_t defaultColorCorrection) {
   while(numLEDs < 6*gradientLength) { gradientLength--; }
   bool doDouble = numLEDs > 12*gradientLength;
@@ -289,6 +299,7 @@ void GammaManager::RunGradientTest(CRGB* leds, uint16_t numLEDs, uint16_t gradie
   } while(ProcessSerialInput());
 }
 
+// Handles serial IO while running RunTests()
 bool GammaManager::ProcessSerialInput() {
   Serial.println("\nTo edit Gamma, enter: r,g,b,d(dimming), or a(all). 'w' to write matrices. 'u' to toggle matrix use");
   Serial.println("'c' for color correction. 't' for temperature. '###' sets brightness (1-255). 'n' for next pattern.");
@@ -401,6 +412,7 @@ bool GammaManager::ProcessSerialInput() {
   return true;
 }
 
+// Uses current gamma and dimming values to output matrices, which should be pasted into the main project
 void GammaManager::WriteGammaMatrices(float gamma, int max_in, int max_out, String matrixNameSuffix, bool includeReverse) {
   int forwardGamma[256];
   int reverseGamma[256];

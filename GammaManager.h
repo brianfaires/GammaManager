@@ -28,7 +28,7 @@ class GammaManager {
     uint8_t minBrightness_B = 1;
 
     // For tests only
-    uint8_t b = 64; // brightness
+    uint8_t b = 255; // default brightness
     uint32_t colCorrection;
     uint32_t temp;
     bool useLookupMatrices = false;
