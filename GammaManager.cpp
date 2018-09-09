@@ -16,7 +16,7 @@ void GammaManager::Inverse(CRGB& pixel) {
 
 // Scales brightness according to the brightness gamma matrix defined in the main project
 void GammaManager::ScaleBrightness(CRGB& pixel, uint8_t brightness) {
-  pixel %= gammaDim[brightness];
+  pixel %= pgm_read_byte(&gammaDim[brightness]);
 }
 
 // Shortcut to apply gamma and brightness scaling
@@ -161,9 +161,13 @@ void GammaManager::RunTests(CRGB* leds, uint16_t numLEDs, uint16_t thickness, ui
       // Stripes of colors with middle colors drawn; brightness derived from gammaDim
       RunMidpointTest(leds, numLEDs, thickness);
     }
+	else if(curMode == 8) {
+		// One long stretch of white to see how overall dimming works
+		RunDimmingTest(leds, numLEDs);
+	}
 
     for(uint16_t i = 0; i < numLEDs; i++) { leds[i] = CRGB::Black; }
-    curMode = (curMode+1) % 8;
+    curMode = (curMode+1) % 9;
   }
 }
 
@@ -482,3 +486,21 @@ void GammaManager::WriteGammaMatrices(float gamma, int max_in, int max_out, Stri
   }
 }
 
+void GammaManager::RunDimmingTest(CRGB* leds, uint16_t numLEDs) {
+	uint8_t length = 32;
+	if(numLEDs < length) { length = numLEDs; }
+	float fadeStepSize = 255.0 / length;
+	
+	do {
+		for(uint16_t i = 0; i < length; i++) {
+			uint8_t linear = fadeStepSize * (i+1);
+			uint8_t value;
+			if(useLookupMatrices) { value = pgm_read_byte(&gammaDim[linear]); }
+			else { value = 255 - (uint8_t)max(1, 255 - pow(linear / 255.0, fGammaDim) * 255 + 0.5); }
+			leds[i] = CRGB(value, value, value);
+		}
+		
+		FixFloors(leds, length);
+		FastLED.show();
+  } while(ProcessSerialInput());
+}
