@@ -42,6 +42,7 @@ class GammaManager {
     void RunGradientTest(CRGB* leds, uint16_t numLEDs, uint16_t gradientLength = 32, uint32_t defaultColorCorrection = 0xFFFFFF);
     void RunWhiteTest(CRGB* leds, uint16_t numLEDs, uint8_t spacing);
     void RunMidpointTest(CRGB* leds, uint16_t numLEDs, uint8_t thickness = 4, bool onePatternOnly = false);
+	void RunDimmingTest(CRGB* leds, uint16_t numLEDs);
     void WriteGammaMatrices(float gamma, int max_in = 255, int max_out = 255, String matrixNameSuffix = "", bool includeReverse = true);
     bool ProcessSerialInput();
 };
