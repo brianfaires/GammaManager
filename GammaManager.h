@@ -6,14 +6,14 @@
 
 class GammaManager {
   public:
-    void Init(uint32_t colorCorrection, const uint8_t* gamR=NULL, const uint8_t* gamG=NULL, const uint8_t* gamB=NULL, const uint8_t* gamDim=NULL, const uint8_t* gamDim5=NULL, const uint8_t* gamRr=NULL, const uint8_t* gamGr=NULL, const uint8_t* gamBr=NULL);
+    void Init(const uint8_t* gamR=NULL, const uint8_t* gamG=NULL, const uint8_t* gamB=NULL, const uint8_t* gamDim=NULL, const uint8_t* gamDim5=NULL, const uint8_t* gamRr=NULL, const uint8_t* gamGr=NULL, const uint8_t* gamBr=NULL);
     void Correct(CRGB& pixel);
     void Inverse(CRGB& pixel);
     void SetBrightness(CRGB& pixel, uint8_t& pixel_b, uint8_t brightness);
     void SetPixel(CRGB& pixel, uint8_t& pixel_b, uint8_t brightness);
     void FixFloors(CRGB* leds, uint16_t numLEDs);
     
-    void RunTests(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint16_t thickness = 4, uint16_t gradientLength = 32, uint32_t defaultColorCorrection = 0xFFFFFF, uint32_t defaultTemp = 0xFFFFFF);
+    void RunTests(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint16_t thickness = 4, uint16_t gradientLength = 32, uint32_t defaultTemp = 0xFFFFFF);
 
   private:
 	const uint8_t* gammaR;
@@ -40,7 +40,7 @@ class GammaManager {
     float fGammaDim = 2.35;//1.50
   
     void RunSimpleTest(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint8_t thickness = 4);
-    void RunGradientTest(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint16_t gradientLength = 32, uint32_t defaultColorCorrection = 0xFFFFFF);
+    void RunGradientTest(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint16_t gradientLength = 32);
     void RunWhiteTest(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint8_t spacing);
     void RunMidpointTest(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint8_t thickness = 4, bool onePatternOnly = false);
 	void RunDimmingTest(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs);

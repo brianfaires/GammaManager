@@ -16,8 +16,9 @@ void GammaManager::Inverse(CRGB& pixel) {
 
 // Sets and scales 5-bit and 8-bit brightnesses according to the gamma matrices defined in the main project
 void GammaManager::SetBrightness(CRGB& pixel, uint8_t& pixel_b, uint8_t brightness) {
-  pixel_b = pgm_read_byte(&gammaDim_5bit[brightness]);
-  pixel %= pgm_read_byte(&gammaDim[brightness]);
+  pixel_b = brightness;
+  //pixel_b = pgm_read_byte(&gammaDim_5bit[brightness]);
+  //pixel %= pgm_read_byte(&gammaDim[brightness]);
   /*const uint8_t breakpoint = 64; // The point that led_b reaches 1
     
   if(brightness <= breakpoint) {
@@ -37,7 +38,7 @@ void GammaManager::SetPixel(CRGB& pixel, uint8_t& pixel_b, uint8_t brightness) {
 }
 
 // Initialize the Gamma controller. Optionally ignore the gamma matrix references to only adjust color correction floors
-void GammaManager::Init(uint32_t colorCorrection, const uint8_t* gamR, const uint8_t* gamG, const uint8_t* gamB, const uint8_t* gamDim, const uint8_t* gamDim5, const uint8_t* gamRr, const uint8_t* gamGr, const uint8_t* gamBr) {
+void GammaManager::Init(const uint8_t* gamR, const uint8_t* gamG, const uint8_t* gamB, const uint8_t* gamDim, const uint8_t* gamDim5, const uint8_t* gamRr, const uint8_t* gamGr, const uint8_t* gamBr) {
   if(gamR != NULL) { gammaR = gamR; }
   if(gamG != NULL) { gammaG = gamG; }
   if(gamB != NULL) { gammaB = gamB; }
@@ -47,6 +48,7 @@ void GammaManager::Init(uint32_t colorCorrection, const uint8_t* gamR, const uin
   if(gamGr != NULL) { reverseGammaG = gamGr; }
   if(gamBr != NULL) { reverseGammaB = gamBr; }
   
+  uint32_t colorCorrection = 0xFFFFFF;
   uint16_t correctionR = colorCorrection >> 16;
   uint16_t correctionG = (colorCorrection  & 0xFF00) >> 8;
   uint16_t correctionB = colorCorrection & 0xFF;
@@ -131,18 +133,16 @@ void GammaManager::FixFloors(CRGB* leds, uint16_t numLEDs) {
 }
 
 // The main test loop with serial IO
-void GammaManager::RunTests(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint16_t thickness, uint16_t gradientLength, uint32_t defaultColorCorrection, uint32_t defaultTemp) {
+void GammaManager::RunTests(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint16_t thickness, uint16_t gradientLength, uint32_t defaultTemp) {
   static uint8_t curMode = 0;
-  colCorrection = defaultColorCorrection;
   temp = defaultTemp;
-  FastLED.setCorrection(colCorrection);
   FastLED.setTemperature(temp);
-  Init(colCorrection);
+  //Init(colCorrection);
   
   while(true) {
     if(curMode == 0) {
       // The most common test; A gradient of RGB at the start and a gradient of HSV at the end
-      RunGradientTest(leds, leds_b, numLEDs, gradientLength, defaultColorCorrection);
+      RunGradientTest(leds, leds_b, numLEDs, gradientLength);
     }
     else if(curMode == 1) { 
       // A single pattern of RGB
@@ -286,7 +286,7 @@ void GammaManager::RunMidpointTest(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs
 }
 
 // Draws a gradient (or double gradient if room) of RGB from the front end, and HSV from the back end
-void GammaManager::RunGradientTest(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint16_t gradientLength, uint32_t defaultColorCorrection) {
+void GammaManager::RunGradientTest(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint16_t gradientLength) {
   while(numLEDs < 6*gradientLength) { gradientLength--; }
   bool doDouble = numLEDs > 12*gradientLength;
   int limit = doDouble ? 6*gradientLength : 3*gradientLength;
@@ -463,7 +463,7 @@ bool GammaManager::ProcessSerialInput() {
           colCorrection += s[i] - 'A' + 10;
       }
     }
-    Init(colCorrection);
+    //Init(colCorrection);
     FastLED.setCorrection(colCorrection);
   }
   else if(s == "t") {
