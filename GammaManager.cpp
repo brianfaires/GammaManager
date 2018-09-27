@@ -23,13 +23,13 @@ void GammaManager::Init(const uint8_t* gamR, const uint8_t* gamG, const uint8_t*
   if(gamGr != NULL) { reverseGammaG = gamGr; }
   if(gamBr != NULL) { reverseGammaB = gamBr; }
   if(bright != NULL) { brightness = bright; }
-  *brightness = INITIAL_BRIGHTNESS;
 }
 
 
 // The main test loop with serial IO
 void GammaManager::RunTests(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint16_t thickness, uint16_t gradientLength) {
   static uint8_t curMode = 0;
+  *brightness = INITIAL_BRIGHTNESS;
   
   while(true) {
     if(curMode == 0) {
