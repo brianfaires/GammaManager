@@ -1,5 +1,4 @@
-#ifndef GAMMA_MANAGER_H
-#define GAMMA_MANAGER_H
+#pragma once
 
 #include "Arduino.h"
 #include "FastLED.h"
@@ -8,7 +7,9 @@ class GammaManager {
   public:
     void Init(const uint8_t* gamR=NULL, const uint8_t* gamG=NULL, const uint8_t* gamB=NULL, const uint8_t* gamRr=NULL, const uint8_t* gamGr=NULL, const uint8_t* gamBr=NULL, uint8_t *bright=NULL);
     void Correct(CRGB& pixel);
-    void Inverse(CRGB& pixel);    
+    void Inverse(CRGB& pixel);
+	CRGB Blend(CRGB& a, CRGB& b, fract8 blendAmount);
+	void BlendInPlace(CRGB& a, CRGB& b, fract8 blendAmount);
     void RunTests(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint16_t thickness = 4, uint16_t gradientLength = 32);
 
   private:
@@ -37,6 +38,3 @@ class GammaManager {
     void WriteGammaMatrices(float gamma, int max_in = 255, int max_out = 255, String matrixNameSuffix = "", bool includeReverse = true);
     bool ProcessSerialInput();
 };
-
-#endif
-

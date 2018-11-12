@@ -25,6 +25,26 @@ void GammaManager::Init(const uint8_t* gamR, const uint8_t* gamG, const uint8_t*
   if(bright != NULL) { brightness = bright; }
 }
 
+// Blend two previously-corrected CRGBs using Gamma correction
+CRGB GammaManager::Blend(CRGB& a, CRGB& b, fract8 blendAmount) {
+	CRGB tempA = a;
+	CRGB tempB = b;
+	Inverse(tempA);
+	Inverse(tempB);
+	CRGB retVal = blend(tempA, tempB, blendAmount);
+	Correct(retVal);
+	return retVal;
+}
+
+// Destructively blend two previously-corrected CRGBs using Gamma correction
+void GammaManager::BlendInPlace(CRGB& a, CRGB& b, fract8 blendAmount) {
+	Inverse(a);
+	CRGB temp = b;
+	Inverse(temp);
+	nblend(a, temp, blendAmount);
+	Correct(a);
+}
+
 
 // The main test loop with serial IO
 void GammaManager::RunTests(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint16_t thickness, uint16_t gradientLength) {
