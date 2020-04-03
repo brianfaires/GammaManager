@@ -1,7 +1,8 @@
 #pragma once
-
 #include "Arduino.h"
 #include "FastLED.h"
+
+#define ENABLE_COLOR_CORRECTION_TESTS
 
 class GammaManager {
   public:
@@ -10,8 +11,9 @@ class GammaManager {
     void Inverse(CRGB& pixel);
 	  CRGB Blend(CRGB& a, CRGB& b, fract8 blendAmount);
 	  void BlendInPlace(CRGB& a, CRGB& b, fract8 blendAmount);
-    void RunTests(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint16_t thickness = 4, uint16_t gradientLength = 32);
-
+    #ifdef  ENABLE_COLOR_CORRECTION_TESTS
+      void RunTests(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint16_t thickness = 4, uint16_t gradientLength = 32);
+    #endif
   private:
     const uint8_t* gammaR;
     const uint8_t* reverseGammaR;
@@ -20,7 +22,7 @@ class GammaManager {
     const uint8_t* gammaB;
     const uint8_t* reverseGammaB;
 
-    // For tests only
+#ifdef ENABLE_COLOR_CORRECTION_TESTS
     uint8_t* brightness; // default brightness
     bool useLookupMatrices = false;
 	  uint32_t colCorrection = 0xFFFFFF;
@@ -37,4 +39,5 @@ class GammaManager {
 	  void RunDimmingTest(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint16_t gradientLength);
     void WriteGammaMatrices(float gamma, int max_in = 255, int max_out = 255, String matrixNameSuffix = "", bool includeReverse = true);
     bool ProcessSerialInput();
+#endif
 };

@@ -14,7 +14,7 @@ void GammaManager::Inverse(CRGB& pixel) {
   pixel.b = pgm_read_byte(&reverseGammaB[pixel.b]);
 }
 
-// Initialize the Gamma controller. Optionally ignore the gamma matrix references to only adjust color correction floors
+// Initialize the Gamma controller. Optionally ignore any matrices by passing NULL.
 void GammaManager::Init(const uint8_t* gamR, const uint8_t* gamG, const uint8_t* gamB, const uint8_t* gamRr, const uint8_t* gamGr, const uint8_t* gamBr, uint8_t *bright) {
   if(gamR != NULL) { gammaR = gamR; }
   if(gamG != NULL) { gammaG = gamG; }
@@ -22,7 +22,10 @@ void GammaManager::Init(const uint8_t* gamR, const uint8_t* gamG, const uint8_t*
   if(gamRr != NULL) { reverseGammaR = gamRr; }
   if(gamGr != NULL) { reverseGammaG = gamGr; }
   if(gamBr != NULL) { reverseGammaB = gamBr; }
-  if(bright != NULL) { brightness = bright; }
+  
+  #ifdef ENABLE_COLOR_CORRECTION_TESTS
+    if(bright != NULL) { brightness = bright; }
+  #endif
 }
 
 // Blend two previously-corrected CRGBs using Gamma correction
@@ -46,6 +49,7 @@ void GammaManager::BlendInPlace(CRGB& a, CRGB& b, fract8 blendAmount) {
 }
 
 
+#ifdef ENABLE_COLOR_CORRECTION_TESTS
 // The main test loop with serial IO
 void GammaManager::RunTests(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint16_t thickness, uint16_t gradientLength) {
   static uint8_t curMode = 0;
@@ -67,7 +71,9 @@ void GammaManager::RunTests(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint1
     else if(curMode == 3) {
       // A single strip of white
       RunWhiteTest(leds, leds_b, min(uint16_t(numLEDs), uint16_t(2*thickness)), 0); // todo: investigate this: this is a hack to get around a bug in the esp libraries
-	  if(numLEDs > 4*thickness) { RunWhiteTest(&leds[numLEDs-2*thickness], &leds_b[numLEDs-2*thickness], 2*thickness, 0); }
+	    if(numLEDs > 4*thickness) {
+        RunWhiteTest(&leds[numLEDs-2*thickness], &leds_b[numLEDs-2*thickness], 2*thickness, 0);
+      }
     }
     else if(curMode == 4) {
       // White every third pixel
@@ -85,10 +91,10 @@ void GammaManager::RunTests(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint1
       // Stripes of colors with middle colors drawn; brightness derived from gammaDim
       RunMidpointTest(leds, leds_b, numLEDs, thickness);
     }
-	else if(curMode == 8) {
-		// One long stretch of white to see how overall dimming works
-		RunDimmingTest(leds, leds_b, numLEDs, gradientLength);
-	}
+    else if(curMode == 8) {
+      // One long stretch of white to see how overall dimming works
+      RunDimmingTest(leds, leds_b, numLEDs, gradientLength);
+    }
 
     for(uint16_t i = 0; i < numLEDs; i++) { leds[i] = CRGB::Black; }
     curMode = (curMode+1) % 9;
@@ -408,3 +414,4 @@ void GammaManager::WriteGammaMatrices(float gamma, int max_in, int max_out, Stri
   }
 }
 
+#endif
