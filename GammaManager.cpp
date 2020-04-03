@@ -144,31 +144,31 @@ void GammaManager::RunMidpointTest(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs
         leds[i+j] = CRGB(255,0,0);
         leds[i+j+2*thickness] = CRGB(0,255,0);
         leds[i+j+4*thickness] = CRGB(0,0,255);
-		leds_b[i+j] = 255;
-		leds_b[i+j+2*thickness] = 255;
-		leds_b[i+j+4*thickness] = 255;
-		
-		leds[i+j+thickness] = CRGB(128,128,0);
-		leds[i+j+3*thickness] = CRGB(0,128,128);
-		leds[i+j+5*thickness] = CRGB(128,0,128);
-		leds_b[i+j+thickness] = 255;
-		leds_b[i+j+3*thickness] = 255;
-		leds_b[i+j+5*thickness] = 255;
+        leds_b[i+j] = 255;
+        leds_b[i+j+2*thickness] = 255;
+        leds_b[i+j+4*thickness] = 255;
+        
+        leds[i+j+thickness] = CRGB(128,128,0);
+        leds[i+j+3*thickness] = CRGB(0,128,128);
+        leds[i+j+5*thickness] = CRGB(128,0,128);
+        leds_b[i+j+thickness] = 255;
+        leds_b[i+j+3*thickness] = 255;
+        leds_b[i+j+5*thickness] = 255;
 
-		if(useLookupMatrices) {
-		  Correct(leds[i+j+thickness]);
-		  Correct(leds[i+j+3*thickness]);
-		  Correct(leds[i+j+5*thickness]);
-        }
-        else {			
-			leds[i+j+thickness].r = applyGamma_video(leds[i+j+thickness].r, fGammaR);
-			leds[i+j+thickness].g = applyGamma_video(leds[i+j+thickness].g, fGammaG);
-			
-			leds[i+j+3*thickness].g = applyGamma_video(leds[i+j+3*thickness].g, fGammaG);
-			leds[i+j+3*thickness].b = applyGamma_video(leds[i+j+3*thickness].b, fGammaB);
-			
-			leds[i+j+5*thickness].r = applyGamma_video(leds[i+j+5*thickness].r, fGammaR);
-			leds[i+j+5*thickness].b = applyGamma_video(leds[i+j+5*thickness].b, fGammaB);
+        if(useLookupMatrices) {
+          Correct(leds[i+j+thickness]);
+          Correct(leds[i+j+3*thickness]);
+          Correct(leds[i+j+5*thickness]);
+            }
+            else {			
+          leds[i+j+thickness].r = applyGamma_video(leds[i+j+thickness].r, fGammaR);
+          leds[i+j+thickness].g = applyGamma_video(leds[i+j+thickness].g, fGammaG);
+          
+          leds[i+j+3*thickness].g = applyGamma_video(leds[i+j+3*thickness].g, fGammaG);
+          leds[i+j+3*thickness].b = applyGamma_video(leds[i+j+3*thickness].b, fGammaB);
+          
+          leds[i+j+5*thickness].r = applyGamma_video(leds[i+j+5*thickness].r, fGammaR);
+          leds[i+j+5*thickness].b = applyGamma_video(leds[i+j+5*thickness].b, fGammaB);
         }
       }
       if(onePatternOnly) { break; }
