@@ -66,7 +66,7 @@ void GammaManager::RunTests(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint1
     }
     else if(curMode == 3) {
       // A single strip of white
-      RunWhiteTest(leds, leds_b, min(uint16_t(numLEDs), uint16_t(2*thickness)), 0); // debug: this is a hack to get around a bug in the esp libraries
+      RunWhiteTest(leds, leds_b, min(uint16_t(numLEDs), uint16_t(2*thickness)), 0); // todo: investigate this: this is a hack to get around a bug in the esp libraries
 	  if(numLEDs > 4*thickness) { RunWhiteTest(&leds[numLEDs-2*thickness], &leds_b[numLEDs-2*thickness], 2*thickness, 0); }
     }
     else if(curMode == 4) {
