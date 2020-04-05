@@ -1,4 +1,5 @@
 #include "GammaManager.h"
+#include "GammaManagerConfig.h"
 
 // Applies gamma correction from matrices defined in the main project
 void GammaManager::Correct(CRGB& pixel) {
@@ -14,18 +15,16 @@ void GammaManager::Inverse(CRGB& pixel) {
   pixel.b = pgm_read_byte(&reverseGammaB[pixel.b]);
 }
 
-// Initialize the Gamma controller. Optionally ignore any matrices by passing NULL.
-void GammaManager::Init(const uint8_t* gamR, const uint8_t* gamG, const uint8_t* gamB, const uint8_t* gamRr, const uint8_t* gamGr, const uint8_t* gamBr, uint8_t *bright) {
-  if(gamR != NULL) { gammaR = gamR; }
-  if(gamG != NULL) { gammaG = gamG; }
-  if(gamB != NULL) { gammaB = gamB; }
-  if(gamRr != NULL) { reverseGammaR = gamRr; }
-  if(gamGr != NULL) { reverseGammaG = gamGr; }
-  if(gamBr != NULL) { reverseGammaB = gamBr; }
-  
-  #ifdef ENABLE_COLOR_CORRECTION_TESTS
-    if(bright != NULL) { brightness = bright; }
-  #endif
+// Initialize the Gamma controller with a pointer to the global brightness variable
+void GammaManager::Init(CRGB* _leds, uint8_t* _leds_b, uint8_t* _leds_5bit_brightness, uint16_t _numLEDs, uint8_t *_globalBrightness) {
+    leds = _leds;
+    leds_b = _leds_b;
+    leds_5bit_brightness = _leds_5bit_brightness;
+    numLEDs = _numLEDs;
+    globalBrightness = _globalBrightness;
+    #ifdef ENABLE_COLOR_CORRECTION_TESTS
+      SetAllColorCorrections(0xFFFFFF);
+    #endif
 }
 
 // Blend two previously-corrected CRGBs using Gamma correction
@@ -48,13 +47,51 @@ void GammaManager::BlendInPlace(CRGB& a, CRGB& b, fract8 blendAmount) {
 	Correct(a);
 }
 
+void GammaManager::PrepPixelsForFastLED() { // Todo: Optimize performance of this function 
+  if(*globalBrightness == 0) {
+    for(uint16_t i = 0; i < numLEDs; i++) { leds_5bit_brightness[i] = 0; }
+    return;
+  }
+
+  for(uint16_t i = 0; i < numLEDs; i++) {
+    if(leds_b[i] == 0) {
+      leds_5bit_brightness[i] = 0;
+    }
+    else {
+      uint16_t brightness = *globalBrightness * leds_b[i] / 0xFF;
+      if(brightness == 0) { brightness = 1; }
+      leds_5bit_brightness[i] = pgm_read_byte(&gammaDim_5bit[brightness]);
+
+      // Dimming logic; all done linearly
+      uint8_t dimAmount = pgm_read_byte(&gammaDim[brightness]);
+      CRGB correction = colorCorrections[leds_5bit_brightness[i]];
+      correction.nscale8_video(dimAmount);
+      leds[i].nscale8(correction); 
+      
+      #ifdef ENABLE_COLOR_CORRECTION_TESTS
+        if(useLookupMatrices) {
+            Correct(leds[i]);
+        }
+        else {
+          leds[i].r = applyGamma_video(leds[i].r, fGammaR);
+          leds[i].g = applyGamma_video(leds[i].g, fGammaG);
+          leds[i].b = applyGamma_video(leds[i].b, fGammaB);
+        }
+      #else
+        Correct(leds[i]);
+      #endif
+    }
+  }
+}
+
 
 #ifdef ENABLE_COLOR_CORRECTION_TESTS
 // The main test loop with serial IO
-void GammaManager::RunTests(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint16_t thickness, uint16_t gradientLength) {
+void GammaManager::RunTests(uint16_t thickness, uint16_t gradientLength) {
   static uint8_t curMode = 0;
-  *brightness = INITIAL_BRIGHTNESS;
-  
+  *globalBrightness = INITIAL_TEST_BRIGHTNESS;
+  for(uint16_t i = 0; i < numLEDs; i++) { leds_b[i] = 255; }
+
   while(true) {
     if(curMode == 0) {
       // The most common test; A gradient of RGB at the start and a gradient of HSV at the end
@@ -102,6 +139,33 @@ void GammaManager::RunTests(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint1
 }
 
 // ------------ Tests ------------
+// Draws a gradient (or double gradient if room) of RGB from the front end, and HSV from the back end
+void GammaManager::RunGradientTest(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint16_t gradientLength) {
+  while(numLEDs < 6*gradientLength) { gradientLength--; }
+  bool doDouble = numLEDs > 12*gradientLength;
+
+  do {
+    fill_gradient(&leds[numLEDs-3*gradientLength], 3*gradientLength, CHSV(255,255,255), CHSV(0,255,255), LONGEST_HUES);
+    for(int i = numLEDs-3*gradientLength; i < numLEDs; i++) { Inverse(leds[i]); }
+    if(doDouble) {
+      fill_gradient(&leds[numLEDs-6*gradientLength], 3*gradientLength, CHSV(255,255,255), CHSV(0,255,255), LONGEST_HUES);
+      for(int i = numLEDs-6*gradientLength; i < numLEDs-3*gradientLength; i++) { Inverse(leds[i]); }
+    }
+    
+    fill_gradient_RGB(leds,   0, CRGB(255,0,0),  gradientLength, CRGB(0,255,0));
+    fill_gradient_RGB(leds,  gradientLength, CRGB(0,255,0),2*gradientLength, CRGB(0,0,255));
+    fill_gradient_RGB(leds,2*gradientLength, CRGB(0,0,255),3*gradientLength, CRGB(255,0,0));
+    if(doDouble) {
+      fill_gradient_RGB(leds,3*gradientLength, CRGB(255,0,0),4*gradientLength, CRGB(0,255,0));
+      fill_gradient_RGB(leds,4*gradientLength, CRGB(0,255,0),5*gradientLength, CRGB(0,0,255));
+      fill_gradient_RGB(leds,5*gradientLength, CRGB(0,0,255),6*gradientLength, CRGB(255,0,0));
+    }
+
+    PrepPixelsForFastLED();
+	  FastLED.show();
+  } while(ProcessSerialInput());
+}
+
 // Shows bands of pure hues for color balancing
 void GammaManager::RunSimpleTest(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint8_t thickness) {
   uint16_t period = 3*(thickness+1);
@@ -110,18 +174,19 @@ void GammaManager::RunSimpleTest(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, 
 
   do {
 		for(int i=0; i+period <= numLEDs; i+=period) {
-		for(int j = 0; j < thickness; j++) {
-		  leds[i+j] = CRGB(255,0,0);
-		  leds[i+j+thickness+1] = CRGB(0,255,0);
-		  leds[i+j+2*(thickness+1)] = CRGB(0,0,255);
-		  
-		  leds_b[i+j] = 255;
-		  leds_b[i+j+thickness+1] = 255;
-		  leds[i+j+2*(thickness+1)] = 255;
-		}
+      for(int j = 0; j < thickness; j++) {
+        leds[i+j] = CRGB(255,0,0);
+        leds[i+j+thickness+1] = CRGB(0,255,0);
+        leds[i+j+2*(thickness+1)] = CRGB(0,0,255);
+        
+        leds_b[i+j] = 255;
+        leds_b[i+j+thickness+1] = 255;
+        leds[i+j+2*(thickness+1)] = 255;
+      }
     }
 
-    FastLED.show();
+    PrepPixelsForFastLED();
+	  FastLED.show();
   } while(ProcessSerialInput());
 }
 
@@ -131,10 +196,11 @@ void GammaManager::RunWhiteTest(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, u
   
   do {
 	  for(uint16_t i = 0; i < numLEDs; i+=interval) {
-		leds[i] = colCorrection;
-		leds_b[i] = 255;
+      leds[i] = CRGB(255, 255, 255);
+      leds_b[i] = 255;
 	  }
 
+	  PrepPixelsForFastLED();
 	  FastLED.show();
   } while(ProcessSerialInput());
 }
@@ -160,66 +226,12 @@ void GammaManager::RunMidpointTest(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs
         leds_b[i+j+thickness] = 255;
         leds_b[i+j+3*thickness] = 255;
         leds_b[i+j+5*thickness] = 255;
-
-        if(useLookupMatrices) {
-          Correct(leds[i+j+thickness]);
-          Correct(leds[i+j+3*thickness]);
-          Correct(leds[i+j+5*thickness]);
-            }
-            else {			
-          leds[i+j+thickness].r = applyGamma_video(leds[i+j+thickness].r, fGammaR);
-          leds[i+j+thickness].g = applyGamma_video(leds[i+j+thickness].g, fGammaG);
-          
-          leds[i+j+3*thickness].g = applyGamma_video(leds[i+j+3*thickness].g, fGammaG);
-          leds[i+j+3*thickness].b = applyGamma_video(leds[i+j+3*thickness].b, fGammaB);
-          
-          leds[i+j+5*thickness].r = applyGamma_video(leds[i+j+5*thickness].r, fGammaR);
-          leds[i+j+5*thickness].b = applyGamma_video(leds[i+j+5*thickness].b, fGammaB);
-        }
       }
       if(onePatternOnly) { break; }
     }
     
-    FastLED.show();
-  } while(ProcessSerialInput());
-}
-
-// Draws a gradient (or double gradient if room) of RGB from the front end, and HSV from the back end
-void GammaManager::RunGradientTest(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs, uint16_t gradientLength) {
-  while(numLEDs < 6*gradientLength) { gradientLength--; }
-  bool doDouble = numLEDs > 12*gradientLength;
-  int limit = doDouble ? 6*gradientLength : 3*gradientLength;
-  
-  do {
-    fill_gradient(&leds[numLEDs-3*gradientLength], 3*gradientLength, CHSV(255,255,255), CHSV(0,255,255), LONGEST_HUES);
-    if(doDouble) {
-      fill_gradient(&leds[numLEDs-6*gradientLength], 3*gradientLength, CHSV(255,255,255), CHSV(0,255,255), LONGEST_HUES);
-    }
-    
-    fill_gradient_RGB(leds,   0, CRGB(255,0,0),  gradientLength, CRGB(0,255,0));
-    fill_gradient_RGB(leds,  gradientLength, CRGB(0,255,0),2*gradientLength, CRGB(0,0,255));
-    fill_gradient_RGB(leds,2*gradientLength, CRGB(0,0,255),3*gradientLength, CRGB(255,0,0));
-    if(doDouble) {
-      fill_gradient_RGB(leds,3*gradientLength, CRGB(255,0,0),4*gradientLength, CRGB(0,255,0));
-      fill_gradient_RGB(leds,4*gradientLength, CRGB(0,255,0),5*gradientLength, CRGB(0,0,255));
-      fill_gradient_RGB(leds,5*gradientLength, CRGB(0,0,255),6*gradientLength, CRGB(255,0,0));
-    }
-  
-    if(useLookupMatrices) {
-      for(int i = 0; i <= limit; i++) {
-        Correct(leds[i]);
-      }
-    }
-    else {
-      for(int i = 0; i <= limit; i++) {
-        leds[i].r = applyGamma_video(leds[i].r, fGammaR);
-        leds[i].g = applyGamma_video(leds[i].g, fGammaG);
-        leds[i].b = applyGamma_video(leds[i].b, fGammaB);
-      }
-    }
-
-	for(uint16_t i = 0; i < numLEDs; i++) { leds_b[i] = 255; /*Serial.println(String(i) + ": " + String(leds[i].r) + "," + String(leds[i].g) + "," + String(leds[i].b));*/ }
-    FastLED.show();
+    PrepPixelsForFastLED();
+	  FastLED.show();
   } while(ProcessSerialInput());
 }
 
@@ -231,22 +243,24 @@ void GammaManager::RunDimmingTest(CRGB* leds, uint8_t* leds_b, uint16_t numLEDs,
 	
 	do {
 		for(uint16_t i = 0; i < length; i++) {
-			leds[i] = colCorrection;;
+			leds[i] = CRGB(255,255,255);
 			leds_b[i] = (i+1)*fadeStepSize;
 			
 			if(numLEDs >= 2*length+5) {
-				leds[i+length+5] = colCorrection & 0xFFFF00;
+				leds[i+length+5] = CRGB(255,255,0);
 				leds_b[i+length+5] = (i+1)*fadeStepSize;
 			}
 			
 			if(numLEDs >= 3*length+10) {
-				leds[i+2*length+10].r = colCorrection >> 8;
-				leds[i+2*length+10].b = leds[i+2*length+10].r >> 3;
-				leds_b[i+2*length+10] = (i+1)*fadeStepSize;
+				//leds[i+2*length+10].r = colCorrection >> 8;
+				//leds[i+2*length+10].b = leds[i+2*length+10].r >> 3;
+				leds[i+2*length+10] = CRGB(255,0,255);
+        leds_b[i+2*length+10] = (i+1)*fadeStepSize;
 			}
 		}
 		
-		FastLED.show();
+		PrepPixelsForFastLED();
+	  FastLED.show();
   } while(ProcessSerialInput());
 }
 
@@ -255,7 +269,8 @@ bool GammaManager::ProcessSerialInput() {
   Serial.println("\nTo edit Gamma, enter: r,g,b, or a(all). 'w' to write matrices. 'u' to toggle matrix use");
   Serial.println("'###' sets brightness (1-255). 'n' for next pattern. 'c' for colorCorrection");
   Serial.println("brightness +/- with '-', '='. Shift for *2");
-  Serial.println("Brightness: " + String(*brightness) + ", Color Correction: 0x" + String(colCorrection, HEX));
+  uint32_t colCorrectInt = (colorCorrections[0].r<<16) + (colorCorrections[0].g<<8)+ (colorCorrections[0].b);
+  Serial.println("Brightness: " + String(*globalBrightness) + ", Color Correction: 0x" + String(colCorrectInt, HEX));
   if(useLookupMatrices) { Serial.println("------------- Using matrices defined in your project -------------"); }
   else { Serial.println("Gammas: R:" + String(fGammaR) + "\tG:" + String(fGammaG) + "\tB:" + String(fGammaB)); }
   
@@ -264,16 +279,16 @@ bool GammaManager::ProcessSerialInput() {
   s.trim();
   
   if(s == "-") {
-	  *brightness = *brightness - 1;
+	  *globalBrightness = *globalBrightness - 1;
   }
   else if(s == "_") {
-	  *brightness = *brightness - 2;
+	  *globalBrightness = *globalBrightness - 2;
   }
   else if(s == "=") {
-	  *brightness = *brightness + 1;
+	  *globalBrightness = *globalBrightness + 1;
   }
   else if(s == "+") {
-	*brightness = *brightness + 2;
+	*globalBrightness = *globalBrightness + 2;
   }
   else if(s == "n") {
     return false;
@@ -325,7 +340,7 @@ bool GammaManager::ProcessSerialInput() {
     s.trim();
     s.toUpperCase();
 
-    colCorrection = 0;
+    uint32_t colCorrection = 0;
     for(int i=0; s[i]; i++){
       if(s[i] >= '0' && s[i] <= '9') {
           colCorrection *= 0x10;
@@ -336,9 +351,11 @@ bool GammaManager::ProcessSerialInput() {
           colCorrection += s[i] - 'A' + 10;
       }
     }
+
+    SetAllColorCorrections(colCorrection);
   }
   else {
-    *brightness = s.toInt();
+    *globalBrightness = s.toInt();
   }
 
   return true;
